@@ -7,6 +7,9 @@ const session  = require('express-session');
 const passport = require("passport");
 const GoogleStrategy = require('passport-google-oauth2').Strategy;
 const userdb = require("./models/userschema")
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { v4: uuidv4 } = require('uuid');
+const bodyParser = require('body-parser');
 const port = 3200;
 
 const clientid = process.env.CLIENT_ID;
@@ -14,6 +17,7 @@ const clientsecret = process.env.CLIENT_SEC;
 
 
 //middleware
+app.use(bodyParser.json());
 
 app.use(cors({
     origin: "http://localhost:5173",
@@ -118,6 +122,164 @@ app.get('/logout', (req, res) => {
     });
 });
 
+
+//speech by google
+
+const apiKey = process.env.API_KEY;
+if (!apiKey) {
+  throw new Error('API_KEY is not defined in environment variables.');
+}
+
+// Initialize GoogleGenerativeAI with the API key
+const genAI = new GoogleGenerativeAI(apiKey);
+
+let qsns = 0;
+let conversation_history = [];
+let responses = [];
+let generated_questions = [];
+let interview_results = {};
+
+const INITIAL_PROMPT = "You are the interviewer in an interview. Ask me questions one by one.";
+
+async function generate_response(query, initial_prompt = INITIAL_PROMPT) {
+  global.conversation_history;
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-1.5-flash',
+  });
+
+  const current_conversation = conversation_history.slice(-2).concat([`user: ${query}`]).join('\n');
+  const full_prompt = `${initial_prompt}\n${current_conversation}`;
+  
+  try {
+    const result = await model.generateContent(full_prompt);
+
+    // Check if response is valid
+    if (result && result.response && result.response.candidates && result.response.candidates.length > 0) {
+      const textContent = result.response.candidates[0].content.parts[0].text;
+      conversation_history.push(`ai: ${textContent}`);
+      return textContent;
+    } else {
+      console.error('Invalid API response:', result);
+      return 'Sorry, I couldn\'t generate a response.';
+    }
+  } catch (error) {
+    console.error('Error generating response:', error);
+    return 'An error occurred while generating the response.';
+  }
+}
+
+async function evaluate_answer(question, answer) {
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-1.5-flash',
+  });
+
+  const prompt = `Question: ${question}\nAnswer: ${answer}\nEvaluate the above answer as an interview response. Provide a rating (Excellent, Good, Average, Poor) and explain why.`;
+
+  try {
+    const result = await model.generateContent(prompt);
+
+    if (result && result.response && result.response.candidates && result.response.candidates.length > 0) {
+      const evaluation_text = result.response.candidates[0].content.parts[0].text;
+      let rating = "Average";
+      if (evaluation_text.includes("Excellent")) {
+        rating = "Excellent";
+      } else if (evaluation_text.includes("Good")) {
+        rating = "Good";
+      } else if (evaluation_text.includes("Poor")) {
+        rating = "Poor";
+      }
+      return { rating, evaluation_text };
+    } else {
+      console.error('Invalid API response:', result);
+      return { rating: "Average", evaluation_text: 'Unable to evaluate.' };
+    }
+  } catch (error) {
+    console.error('Error evaluating answer:', error);
+    return { rating: "Average", evaluation_text: 'An error occurred while evaluating the answer.' };
+  }
+}
+
+app.post('/api/gemini', async (req, res) => {
+  global.qsns, conversation_history, responses, generated_questions;
+  const user_message = req.body.message;
+
+  if (!user_message) {
+    return res.status(400).json({ response: 'No message provided' });
+  }
+
+  try {
+    let current_question;
+
+    if (qsns < generated_questions.length) {
+      current_question = generated_questions[qsns];
+    } else {
+      current_question = await generate_response(user_message);
+      generated_questions.push(current_question);
+    }
+
+    conversation_history.push(`ai: ${current_question}`);
+    const ai_response = await generate_response(user_message);
+    conversation_history.push(`user: ${user_message}`);
+    
+    const { rating, evaluation_text } = await evaluate_answer(current_question, user_message);
+
+    const response_entry = {
+      question: current_question,
+      answer: user_message,
+      rating: rating,
+      evaluation: evaluation_text
+    };
+    
+    responses.push(response_entry);
+    qsns++;
+
+    if (qsns >= 5) {  // Assuming we want to ask 5 questions
+      const session_id = uuidv4();
+      interview_results[session_id] = responses.slice();
+      qsns = 0;
+      conversation_history = [];
+      responses = [];
+      generated_questions = [];
+      const redirect_url = `http://localhost:3200/result/${session_id}`;
+
+      return res.json({
+        response: ai_response,
+        redirect: redirect_url
+      });
+    }
+
+    conversation_history = conversation_history.slice(-1);
+
+    return res.json({ response: current_question });
+  } catch (error) {
+    console.error('Error processing request:', error);
+    return res.status(500).json({ response: `Error: ${error.message}` });
+  }
+});
+
+app.get('/result/:session_id', (req, res) => {
+  const session_id = req.params.session_id;
+  const results = interview_results[session_id];
+  console.log(results);
+  console.log(responses);
+  if (results) {
+    return res.json({ results });
+  } else {
+    return res.status(404).json({ response: 'Session not found' });
+  }
+});
+
+app.get('/results/:session_id', (req, res) => {
+    const sessionId = req.params.session_id;
+    const results = interview_results[sessionId] || [];
+    console.log(results);
+    res.json({ results });
+  });
+//endgoogle
+
+app.get('/',(req,res) =>{
+ res.write("<h1>Hi Bibhuti Ranjan </h1>");
+})
 app.listen(port,(error)=>{
  if(!error){
     console.log("🎉Successfully conntected to server ");
