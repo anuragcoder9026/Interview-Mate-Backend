@@ -203,59 +203,61 @@ app.post('/api/gemini', async (req, res) => {
   global.qsns, conversation_history, responses, generated_questions;
   const user_message = req.body.message;
 
-  if (!user_message) {
-    return res.status(400).json({ response: 'No message provided' });
-  }
-
   try {
-    let current_question;
+      let current_question;
 
-    if (qsns < generated_questions.length) {
-      current_question = generated_questions[qsns];
-    } else {
-      current_question = await generate_response(user_message);
-      generated_questions.push(current_question);
-    }
+      if (qsns < generated_questions.length) {
+          current_question = generated_questions[qsns];
+      } else {
+          current_question = await generate_response(user_message);
+          generated_questions.push(current_question);
+      }
 
-    conversation_history.push(`ai: ${current_question}`);
-    const ai_response = await generate_response(user_message);
-    conversation_history.push(`user: ${user_message}`);
-    
-    const { rating, evaluation_text } = await evaluate_answer(current_question, user_message);
+      // Push AI question to the conversation history
+      conversation_history.push(`ai: ${current_question}`);
+      
+      let ai_response = current_question;
 
-    const response_entry = {
-      question: current_question,
-      answer: user_message,
-      rating: rating,
-      evaluation: evaluation_text
-    };
-    
-    responses.push(response_entry);
-    qsns++;
+      // If the user has responded, evaluate their answer
+      if (user_message) {
+          conversation_history.push(`user: ${user_message}`);
+          const { rating, evaluation_text } = await evaluate_answer(current_question, user_message);
+          
+          const response_entry = {
+              question: current_question,
+              answer: user_message,
+              rating: rating,
+              evaluation: evaluation_text
+          };
+          
+          responses.push(response_entry);
+          ai_response = await generate_response(user_message);
+          generated_questions.push(ai_response);
+          qsns++;
+      }
 
-    if (qsns >= 5) {  // Assuming we want to ask 5 questions
-      const session_id = uuidv4();
-      interview_results[session_id] = responses.slice();
-      qsns = 0;
-      conversation_history = [];
-      responses = [];
-      generated_questions = [];
-      const redirect_url = `http://localhost:3200/result/${session_id}`;
+      if (qsns >= 5) {  // End after 5 questions
+          const session_id = uuidv4();
+          interview_results[session_id] = responses.slice();
+          qsns = 0;
+          conversation_history = [];
+          responses = [];
+          generated_questions = [];
+          const redirect_url = `http://localhost:3200/result/${session_id}`;
 
-      return res.json({
-        response: ai_response,
-        redirect: redirect_url
-      });
-    }
+          return res.json({
+              response: ai_response,
+              redirect: redirect_url
+          });
+      }
 
-    conversation_history = conversation_history.slice(-1);
-
-    return res.json({ response: current_question });
+      return res.json({ response: ai_response });
   } catch (error) {
-    console.error('Error processing request:', error);
-    return res.status(500).json({ response: `Error: ${error.message}` });
+      console.error('Error processing request:', error);
+      return res.status(500).json({ response: `Error: ${error.message}` });
   }
 });
+
 
 app.get('/result/:session_id', (req, res) => {
   const session_id = req.params.session_id;
