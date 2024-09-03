@@ -30,13 +30,21 @@ app.use(express.json());
 app.use(session({
     secret: process.env.SEC,
     resave: false,
-    saveUninitialized: true,
+    saveUninitialized: false,
     cookie: { secure: false }
 }));
 
 app.use(passport.initialize());
 app.use(passport.session());
 
+// Middleware to check if the user is authenticated
+function isAuthenticated(req, res, next) {
+  if (req.isAuthenticated()) {
+      return next(); // If authenticated, proceed to the next middleware/route handler
+  } else {
+      return res.status(401).json({ message: "Please log in to continue." });
+  }
+}
 
 //use passport
 
@@ -202,6 +210,9 @@ async function evaluate_answer(question, answer) {
 let flag = 0;
 let prev_ques = "";
 app.post('/api/gemini', async (req, res) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ error: 'Unauthorized' });
+}
   global.qsns, conversation_history, responses, generated_questions;
   const user_message = req.body.message;
   if(!user_message){
@@ -239,7 +250,6 @@ app.post('/api/gemini', async (req, res) => {
       }
       qsns++;
       if (qsns >= 6) {  // End after 5 questions
-          const session_id = uuidv4();
           interview_results[session_id] = responses.slice();
           qsns = 0;
           flag = 0;
@@ -269,7 +279,7 @@ app.post('/api/gemini', async (req, res) => {
 });
 
 
-app.get('/result/:session_id', (req, res) => {
+app.get('/result/:session_id',isAuthenticated, (req, res) => {
   const session_id = req.params.session_id;
   const results = interview_results[session_id];
   console.log("result :",results);
@@ -281,12 +291,7 @@ app.get('/result/:session_id', (req, res) => {
   }
 });
 
-app.get('/results/:session_id', (req, res) => {
-    const sessionId = req.params.session_id;
-    const results = interview_results[sessionId] || [];
-    console.log(results);
-    res.json({ results });
-  });
+
 //endgoogle
 
 app.get('/',(req,res) =>{
