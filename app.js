@@ -296,7 +296,7 @@ if (!apiKey) {
 
 const genAI = new GoogleGenerativeAI(apiKey);
 
-const INITIAL_PROMPT = "You are the interviewer in an interview. Ask me questions one by one.";
+const INITIAL_PROMPT = "You are the interviewer in an interview. Ask me questions one by one. And donnt stick to one topic  and try to generate different question for make feel like real interview and try to cover all aspect in 10 to 15 question";
 
 // Store data for each session
 const sessionData = {};
@@ -307,7 +307,7 @@ async function generate_response(query, conversation_history, initial_prompt = I
         model: 'gemini-1.5-flash',
     });
 
-    const current_conversation = conversation_history.slice(-2).concat([`user: ${query}`]).join('\n');
+    const current_conversation = conversation_history.slice(-10).concat([`user: ${query}`]).join('\n');
     const full_prompt = `${initial_prompt}\n${current_conversation}`;
     
     try {
@@ -416,7 +416,7 @@ app.post('/api/gemini', async (req, res) => {
                 flag: 0,
                 prev_ques: "",
             };
-            const redirect_url = `http://localhost:3200/result/${session_id}`;
+            const redirect_url = "http://localhost:5173/Interview-Mate-frontend/result/";
             return res.json({
                 response: current_question,
                 redirect: redirect_url
