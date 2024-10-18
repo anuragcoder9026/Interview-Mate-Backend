@@ -1,133 +1,135 @@
-require("dotenv").config();
-const express = require("express");
+import dotenv from 'dotenv';
+import express from "express";
+import cors from "cors";
+import "./db/cone.js"
+import session from 'express-session';
+import passport from "passport";
+import { Strategy as OAuth2Strategy } from "passport-google-oauth20";
+import {User} from "./models/userschema.js";
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { v4 as uuidv4 } from 'uuid';
+import bodyParser from 'body-parser';
+import cookieParser from 'cookie-parser';
+import isAuthenticated from "./middleware/checkAuth.js";
+import userRouter from "./routes/userRouter.js";
+import postRouter from "./routes/postRouter.js";
+
 const app = express();
-const cors = require("cors");
-require("./db/cone")
-const session  = require('express-session');
-const passport = require("passport");
-const GoogleStrategy = require('passport-google-oauth2').Strategy;
-const userdb = require("./models/userschema")
-const { GoogleGenerativeAI } = require('@google/generative-ai');
-const { v4: uuidv4 } = require('uuid');
-const bodyParser = require('body-parser');
 const port = 3200;
 
-const clientid = process.env.CLIENT_ID;
-const clientsecret = process.env.CLIENT_SEC;
-
-
-//middleware
+dotenv.config();
 app.use(bodyParser.json());
-
 app.use(cors({
-    origin: "http://localhost:5173",
-    methods: "GET,POST,PUT,DELETE",
-    credentials: true,
+  origin: 'http://localhost:5173', // Update with your React app's URL
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  credentials: true // Allow cookies to be sent with requests
 }));
-
 app.use(express.json());
-
 app.use(session({
-    secret: process.env.SEC,
-    resave: false,
-    saveUninitialized: false,
-    cookie: { secure: false }
+  secret:process.env.SEC,
+  resave: false,
+  saveUninitialized: true
 }));
-
 app.use(passport.initialize());
-app.use(passport.session());
 
-// Middleware to check if the user is authenticated
-function isAuthenticated(req, res, next) {
-  if (req.isAuthenticated()) {
-      return next(); // If authenticated, proceed to the next middleware/route handler
-  } else {
-      return res.status(401).json({ message: "Please log in to continue." });
+
+app.use(express.urlencoded({ extended: true, limit: '16kb' }));
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cookieParser());
+
+app.use("/api/users", userRouter);
+app.use("/api/posts",postRouter);
+
+const oauth2StrategyLogIn = new OAuth2Strategy({
+  clientID:process.env.CLIENT_ID_SIGNIN,
+  clientSecret: process.env.CLIENT_SECRET_SIGNIN,
+  callbackURL: "http://localhost:3200/auth/google/signin/callback", // Corrected URL
+  scope: ["profile", "email"]
+}, async (accessToken, refreshToken, profile, done) => {
+  try {
+    return done(null, profile);
+  } catch (error) {
+    return done(error, null);
   }
-}
-
-//use passport
-
-passport.use(
-    new GoogleStrategy({
-        clientID: clientid,
-        clientSecret: clientsecret,
-        callbackURL: "http://localhost:3200/api/auth/callback/google",
-        scope: ["email", "profile"],
-    },
-    async (accessToken, refreshToken, profile, done) => {
-        console.log(profile.id);
-        try {
-            let user = await userdb.findOne({ google_id: profile.id });
-            if (!user) {
-                user = new userdb({
-                    google_id: profile.id,
-                    Name: profile.displayName,
-                    email: profile.emails[0].value,
-                    profileimg: profile.photos[0].value,
-                });
-                await user.save();
-            }
-            done(null, user); // Call done with user object
-        } catch (error) {
-            done(error, null);
-        }
-    })
-);
-
-
-//serialise deserliase
-
-
-passport.serializeUser((user, done) => {
-    done(null, user.id); // Serialize user ID
 });
 
-passport.deserializeUser(async (id, done) => {
+const oauth2StrategySignUp = new OAuth2Strategy({
+    clientID:process.env.CLIENT_ID_SIGNUP,
+    clientSecret: process.env.CLIENT_SECRET_SIGNUP,
+    callbackURL: "http://localhost:3200/auth/google/signup/callback", // Corrected URL
+    scope: ["profile", "email"]
+  }, async (accessToken, refreshToken, profile, done) => {
     try {
-        const user = await userdb.findById(id); // Fetch user by ID
-        done(null, user);
+        
+      return done(null, profile);
     } catch (error) {
-        done(error, null);
+      return done(error, null);
     }
+  });
+
+passport.serializeUser((user, done) => {done(null, user); }); 
+passport.deserializeUser((user, done) => {  done(null, user);});
+  
+
+passport.use("google-signin",oauth2StrategyLogIn);
+app.get("/auth/google/signin", passport.authenticate("google-signin", { scope: ["profile", "email"] }));
+
+app.get("/auth/google/signin/callback", passport.authenticate("google-signin", {session:false}),
+async(req,res)=>{   
+  const email=req.user.emails[0].value;
+  let user=await User.findOne({email});
+  if(!user){
+    const uniqueUsername = `${req.user.displayName.replace(/\s/g, '').toLowerCase()}_${uuidv4().slice(0, 8)}`;
+  const username=uniqueUsername;
+  const name=req.user.displayName;
+  const profileimg=req.user.photos[0].value;
+  user=await User.create({username, email,name,profileimg});   
+  }
+  const accessToken=user.generateAccessToken();
+  const options = {
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
+    httpOnly: true,
+    path: '/',
+    secure: true,
+    sameSite: 'None'
+  }; 
+  res.cookie("accessToken",accessToken,options)  ;
+  res.redirect(`http://localhost:5173/Interview-Mate-frontend/profile`)  
 });
 
 
-//google auth
 
-app.get('/auth/google', passport.authenticate('google', { scope: ['email', 'profile'] }));
+passport.use("google-signup",oauth2StrategySignUp);
+app.get("/auth/google/signup", passport.authenticate("google-signup", { scope: ["profile", "email"] }));
 
-app.get('/api/auth/callback/google',
-    passport.authenticate('google', {
-        failureRedirect: 'http://localhost:5173/Interview-Mate-frontend/',
-    }), (req, res) => {
-        if (!req.user) {
-            return res.status(401).json({ error: "Authentication failed" });
-        }
-        console.log("User authenticated successfully, redirecting...");
-        res.redirect('http://localhost:5173/Interview-Mate-frontend/profile');
-    }
-);
+app.get("/auth/google/signup/callback", passport.authenticate("google-signup", {session:false}),
+async(req,res)=>{   
+  const email=req.user.emails[0].value;
+  let user=await User.findOne({email});
+  if(!user){
+  const uniqueUsername = `${req.user.displayName.replace(/\s/g, '').toLowerCase()}_${uuidv4().slice(0, 8)}`;
+  const username=uniqueUsername;
+  const name=req.user.displayName;
+  const profileimg=req.user.photos[0].value;
+  user=await User.create({username, email,name,profileimg});    
+  }
+  const accessToken=user.generateAccessToken();
+  const options = {
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
+    httpOnly: true,
+    path: '/',
+    secure: true,
+    sameSite: 'None'
+  }; 
+  res.cookie("accessToken",accessToken,options) ;
+  res.redirect(`http://localhost:5173/Interview-Mate-frontend/profile/`)  
+});
 
-
-
-app.get('/login/success',(req,res)=>{
-    console.log("login success hit",req.user);
-    if(req.user){
-        res.status(200).json({message:"login success",lebhaidata:req.user})
-
-    }else{
-        res.status(400).json({message:"Not Authorised"});
-    }
-})
-//logut
-app.get('/logout', (req, res) => {
-    req.logout((err) => {
-        if (err) {
-            return next(err);
-        }
-        res.redirect('http://localhost:5173/Interview-Mate-frontend/');
-    });
+app.get('/login/success', isAuthenticated, (req, res) => {
+  if(req.user){
+     res.status(200).json({ message: "Login success", user: req.user });
+  }
+  else res.status(400).json({ message: "not authenticated"}); 
 });
 
 
@@ -137,163 +139,6 @@ const apiKey = process.env.API_KEY;
 if (!apiKey) {
   throw new Error('API_KEY is not defined in environment variables.');
 }
-
-// Initialize GoogleGenerativeAI with the API key
-//const genAI = new GoogleGenerativeAI(apiKey);
-
-// let qsns = 0;
-// let conversation_history = [];
-// let responses = [];
-// let generated_questions = [];
-// let interview_results = {};
-
-// const INITIAL_PROMPT = "You are the interviewer in an interview. Ask me questions one by one.";
-
-// async function generate_response(query, initial_prompt = INITIAL_PROMPT) {
-//   global.conversation_history;
-//   const model = genAI.getGenerativeModel({
-//     model: 'gemini-1.5-flash',
-//   });
-
-//   const current_conversation = conversation_history.slice(-2).concat([`user: ${query}`]).join('\n');
-//   const full_prompt = `${initial_prompt}\n${current_conversation}`;
-  
-//   try {
-//     const result = await model.generateContent(full_prompt);
-
-//     // Check if response is valid
-//     if (result && result.response && result.response.candidates && result.response.candidates.length > 0) {
-//       const textContent = result.response.candidates[0].content.parts[0].text;
-//       conversation_history.push(`ai: ${textContent}`);
-//       return textContent;
-//     } else {
-//       console.error('Invalid API response:', result);
-//       return 'Sorry, I couldn\'t generate a response.';
-//     }
-//   } catch (error) {
-//     console.error('Error generating response:', error);
-//     return 'An error occurred while generating the response.';
-//   }
-// }
-
-// async function evaluate_answer(question, answer) {
-//   const model = genAI.getGenerativeModel({
-//     model: 'gemini-1.5-flash',
-//   });
-
-//   const prompt = `Question: ${question}\nAnswer: ${answer}\nEvaluate the above answer as an interview response. Provide a rating (Excellent, Good, Average, Poor) and explain why.`;
-
-//   try {
-//     const result = await model.generateContent(prompt);
-
-//     if (result && result.response && result.response.candidates && result.response.candidates.length > 0) {
-//       const evaluation_text = result.response.candidates[0].content.parts[0].text;
-//       let rating = "Average";
-//       if (evaluation_text.includes("Excellent")) {
-//         rating = "Excellent";
-//       } else if (evaluation_text.includes("Good")) {
-//         rating = "Good";
-//       } else if (evaluation_text.includes("Poor")) {
-//         rating = "Poor";
-//       }
-//       return { rating, evaluation_text };
-//     } else {
-//       console.error('Invalid API response:', result);
-//       return { rating: "Average", evaluation_text: 'Unable to evaluate.' };
-//     }
-//   } catch (error) {
-//     console.error('Error evaluating answer:', error);
-//     return { rating: "Average", evaluation_text: 'An error occurred while evaluating the answer.' };
-//   }
-// }
-
-// let flag = 0;
-// let prev_ques = "";
-// app.post('/api/gemini', async (req, res) => {
-//   if (!req.isAuthenticated()) {
-//     return res.status(401).json({ error: 'Unauthorized' });
-// }
-//   global.qsns, conversation_history, responses, generated_questions;
-//   const user_message = req.body.message;
-//   if(!user_message){
-//     return res.json({ response: 'Kindly Say hi to start'  });
-//   }
-
-//   try {
-//       let current_question;
-      
-//           current_question = await generate_response(user_message);
-//           generated_questions.push(current_question);
-      
-
-//       // Push AI question to the conversation history
-//       conversation_history.push(`ai: ${current_question}`);
-      
-
-
-//       // If the user has responded, evaluate their answer
-//       if (user_message && flag!=0) {
-//           conversation_history.push(`user: ${user_message}`);
-//           const { rating, evaluation_text } = await evaluate_answer(prev_ques, user_message);
-          
-//           const response_entry = {
-//               question: prev_ques,
-//               answer: user_message,
-//               rating: rating,
-//               evaluation: evaluation_text
-//           };
-          
-//           responses.push(response_entry);
-//           ai_response = await generate_response(user_message);
-//           generated_questions.push(ai_response);
-         
-//       }
-//       qsns++;
-//       const session_id = req.sessionID;
-//       if (qsns >= 6) {  // End after 5 questions
-//           interview_results[session_id] = responses.slice();
-//           qsns = 0;
-//           flag = 0;
-//           conversation_history = [];
-//           responses = [];
-//           generated_questions = [];
-//           const redirect_url = `http://localhost:3200/result/${session_id}`;
-
-//           return res.json({
-//               response: current_question ,
-//               redirect: redirect_url
-//           });
-//       }
-
-//       //bakki sare case ke liye
-//      else{
-//       prev_ques = current_question;
-//       flag = 1;
-//      }
-
-     
-//       return res.json({ response: current_question , session_id  });
-//   } catch (error) {
-//       console.error('Error processing request:', error);
-//       return res.status(500).json({ response: `Error: ${error.message}` });
-//   }
-// });
-
-
-// app.get('/result/:session_id',isAuthenticated, (req, res) => {
-//   const session_id = req.sessionID;
-//   const results = interview_results[session_id];
-//   console.log("result :",results);
-//   console.log(responses);
-//   if (responses) {
-//     return res.json({ responses });
-//   } else {
-//     return res.status(404).json({ response: 'Session not found' });
-//   }
-// });
-
-
-
 const genAI = new GoogleGenerativeAI(apiKey);
 
 const INITIAL_PROMPT = "You are the interviewer in an interview. Ask me questions one by one. And donnt stick to one topic  and try to generate different question for make feel like real interview and try to cover all aspect in 10 to 15 question";
