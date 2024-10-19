@@ -1,5 +1,7 @@
-const mongoose = require('mongoose');
+import mongoose from "mongoose"
+import dotenv from "dotenv";
 
+dotenv.config(); //
 const dburl = process.env.DBURL;
 
 mongoose.connect(dburl, {
