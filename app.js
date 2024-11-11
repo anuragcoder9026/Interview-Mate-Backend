@@ -13,9 +13,89 @@ import cookieParser from 'cookie-parser';
 import isAuthenticated from "./middleware/checkAuth.js";
 import userRouter from "./routes/userRouter.js";
 import postRouter from "./routes/postRouter.js";
-
+import messageRouter from "./routes/messageRouter.js";
+import http from "http";
+import {Server} from "socket.io";
+import { Message } from './models/messageSchema.js';
+import { Chat } from './models/chatSchema.js';
+import { sendMessage } from './controller/messageController.js';
 const app = express();
 const port = 3200;
+const httpServer = http.createServer(app);
+
+const io = new Server(httpServer, {
+  cors: {
+    origin: 'http://localhost:5173', 
+  },
+});
+
+
+io.on('connection', (socket) => {
+ 
+  // Join user to room based on user ID
+  socket.on('join', async (userId) => {
+    socket.userId = userId;
+    socket.join(userId);
+    await User.findByIdAndUpdate(userId, { online: true });
+    io.emit('userOnlineStatus', { userId, online: true });
+  });
+
+  // Handle typing status
+  socket.on('typing', (data) => {
+    io.to(data.recipientId).emit('userTyping', { userId: data.userId, typing: data.typing });
+  });
+
+  // Handle sending messages
+  socket.on('sendMessage', async ({ senderId, recipientId, content,time }) => {
+    const message = await sendMessage(senderId, recipientId, content,time);
+    const unseenCount = await Message.countDocuments({
+      sender: senderId,
+      receiver: recipientId,
+      status: { $ne:'seen'}
+  });
+  
+    io.to(recipientId).emit('receiveMessage', {userId:senderId,message,unseenCount});
+    io.to(senderId).emit('receiveMessage', {userId:recipientId,message,unseenCount});
+  
+    // Single tick to sender (message sent)
+    io.to(senderId).emit('messageStatus', { messageId: message._id, status: 'sent' });
+    const TotalUnseenCount = await Message.countDocuments({
+      receiver: recipientId,
+      status: { $ne:'seen'}
+  });
+  console.log("sendng count love:",TotalUnseenCount);
+  io.to(recipientId).emit('TotalUnseenCount', {TotalUnseenCount});
+  });
+
+  // Mark message as received when recipient receives it
+  
+  
+  socket.on('messageReceived', async (messageId) => {
+    const message = await Message.findByIdAndUpdate(messageId, { status: 'received' }, { new: true });
+    io.to(message.sender.toString()).emit('messageStatus', { messageId, status: 'received' });
+  });
+
+  // Mark message as seen when recipient views it
+  socket.on('messageSeen', async (messageId) => {
+    const message = await Message.findByIdAndUpdate(messageId, { status: 'seen' }, { new: true });
+    io.to(message.sender.toString()).emit('messageStatus', { messageId, status: 'seen' });
+  });
+
+  // Handle user disconnection
+  socket.on('disconnect', async () => {
+    try {
+      const disconnectedUser = await User.findByIdAndUpdate(socket.userId, { online: false });
+      if (disconnectedUser) {
+        io.emit('userOnlineStatus', { userId: disconnectedUser._id, online: false });
+      }
+      socket.leave(socket.userId);
+    } catch (error) {
+      console.error('Error updating user status on disconnect:', error);
+    }
+  });
+});
+
+
 
 dotenv.config();
 app.use(bodyParser.json());
@@ -39,6 +119,8 @@ app.use(cookieParser());
 
 app.use("/api/users", userRouter);
 app.use("/api/posts",postRouter);
+app.use("/api/message",messageRouter);
+
 
 const oauth2StrategyLogIn = new OAuth2Strategy({
   clientID:process.env.CLIENT_ID_SIGNIN,
@@ -292,7 +374,7 @@ app.get('/result/:session_id', isAuthenticated, (req, res) => {
 app.get('/',(req,res) =>{
  res.write("<h1>Hi Bibhuti Ranjan </h1>");
 })
-app.listen(port,(error)=>{
+httpServer.listen(port,(error)=>{
  if(!error){
     console.log("🎉Successfully conntected to server ");
  }
