@@ -57,7 +57,9 @@ const userSchema = new mongoose.Schema({
     description:{ type: String},
     readmore:{type:Boolean}
 }],
-skills:[{type: String}]
+skills:[{type: String}],
+sessions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Session' }]  // Link to Session model
+
 },{timestamps:true});
 
 
