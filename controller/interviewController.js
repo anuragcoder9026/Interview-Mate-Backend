@@ -4,6 +4,8 @@ import {
 } from "../services/googleAIService.js";
 import { Session } from "../models/session.js";
 import { User } from "../models/userschema.js";
+import { Quiz } from "../models/quizSchema.js";
+
 
 const sessionData = {};
 const interview_results = {};
@@ -263,3 +265,121 @@ export const getUserInterviewCount = async (req, res) => {
     return res.status(500).json({ response: "Internal server error" });
   }
 };
+
+export const getquizCount = async (req, res) => {
+    const userId = req.user?._id; // Assuming the user ID is available in the request
+    console.log("hii alok");
+  
+    if (!userId) {
+      return res.status(400).json({ response: "User not authenticated" });
+    }
+  
+    try {
+      // Count the number of sessions for this user
+      const quizCount = await Quiz.countDocuments({ user_id: userId });
+  
+      // Return the count to the user
+      console.log(quizCount);
+      return res.json({ quizCount });
+    } catch (error) {
+      console.error("Error fetching interview count for user:", error);
+      return res.status(500).json({ response: "Internal server error" });
+    }
+  };
+  
+
+export const savescore = async (req, res) => {
+    const userId = req.user?._id;  // Get user ID from the request (auth middleware)
+    const { topic, score, total } = req.body;  // Get quiz data from the request body
+
+    try {
+        // Check if the user exists
+        const user = await User.findById(userId);
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        const adjustedScore = score / 10;
+        const adjustedTotal = total / 10;
+        // Create a new quiz result
+        const newQuizResult = new Quiz({
+            user_id: userId,  // Store the user_id
+            topic: topic,
+            correct: adjustedScore,
+            total: adjustedTotal,
+        });
+
+        // Save the quiz result to the database
+        const savedResult = await newQuizResult.save();
+        console.log('Quiz saved successfully:', savedResult);
+
+        // Add the new quiz result to the user's quizzes array
+        user.quizzes.push(savedResult._id);
+        await user.save();
+
+        // Respond with the saved quiz result and success message
+        return res.status(201).json({
+            message: 'Quiz result saved successfully',
+            quiz: savedResult,
+        });
+    } catch (error) {
+        console.error('Error saving quiz result:', error);
+        return res.status(500).json({ message: 'Error saving quiz result', error });
+    }
+};
+
+
+//quiz
+export const getAllQuizResults = async (req, res) => {
+    const userId = req.user?._id; // Get the current user's ID from the request
+    console.log(userId);
+  
+    if (!userId) {
+      return res.status(400).json({ response: "User not authenticated" });
+    }
+  
+    try {
+      // Get quizzes only for the current user with their results
+      const results = await User.aggregate([
+        {
+          $match: { _id: userId }, // Match the user ID
+        },
+        {
+          $lookup: {
+            from: "quizzes", // Reference the Quiz collection
+            localField: "_id", // Match the user's _id field
+            foreignField: "user_id", // Reference the user_id field in Quiz collection
+            as: "quizzes", // Store the resulting quizzes in the "quizzes" field
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            username: 1, // Include username or any other fields you want
+            quizzes: {
+              _id: 1,         // Include quiz fields you need
+              topic: 1,
+              correct: 1,
+              total: 1,
+              date: 1,        // You can add other fields like timestamp
+            },
+          },
+        },
+      ]);
+  
+      if (results && results.length > 0) {
+        return res.json({ users: results });
+      } else {
+        return res
+          .status(404)
+          .json({ response: "No quiz results found for the current user" });
+      }
+    } catch (error) {
+      console.error(
+        "Error fetching quiz results for the current user:",
+        error
+      );
+      return res.status(500).json({ response: "Internal server error" });
+    }
+  };
+  
