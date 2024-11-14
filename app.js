@@ -14,6 +14,7 @@ import isAuthenticated from "./middleware/checkAuth.js";
 import userRouter from "./routes/userRouter.js";
 import postRouter from "./routes/postRouter.js";
 import messageRouter from "./routes/messageRouter.js";
+import geminiRoute from './routes/geminiRoute.js'; // Notice the .js extension
 import http from "http";
 import {Server} from "socket.io";
 import { Message } from './models/messageSchema.js';
@@ -28,6 +29,8 @@ const io = new Server(httpServer, {
     origin: 'http://localhost:5173', 
   },
 });
+
+
 
 
 io.on('connection', (socket) => {
@@ -97,6 +100,7 @@ io.on('connection', (socket) => {
 
 
 dotenv.config();
+
 app.use(bodyParser.json());
 app.use(cors({
   origin: 'http://localhost:5173', // Update with your React app's URL
@@ -107,9 +111,11 @@ app.use(express.json());
 app.use(session({
   secret:process.env.SEC,
   resave: false,
-  saveUninitialized: true
+  saveUninitialized: true,
+
 }));
 app.use(passport.initialize());
+app.use(passport.session());
 
 
 app.use(express.urlencoded({ extended: true, limit: '16kb' }));
@@ -119,6 +125,7 @@ app.use(cookieParser());
 app.use("/api/users", userRouter);
 app.use("/api/posts",postRouter);
 app.use("/api/message",messageRouter);
+app.use('/api', geminiRoute);
 
 
 const oauth2StrategyLogIn = new OAuth2Strategy({
@@ -214,161 +221,6 @@ app.get('/login/success', isAuthenticated, (req, res) => {
 });
 
 
-//speech by google
-
-const apiKey = process.env.API_KEY;
-if (!apiKey) {
-  throw new Error('API_KEY is not defined in environment variables.');
-}
-const genAI = new GoogleGenerativeAI(apiKey);
-
-const INITIAL_PROMPT = "You are the interviewer in an interview. Ask me questions one by one. And donnt stick to one topic  and try to generate different question for make feel like real interview and try to cover all aspect in 10 to 15 question";
-
-// Store data for each session
-const sessionData = {};
-const interview_results = {};  // Define the interview_results object
-
-async function generate_response(query, conversation_history, initial_prompt = INITIAL_PROMPT) {
-    const model = genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash',
-    });
-
-    const current_conversation = conversation_history.slice(-10).concat([`user: ${query}`]).join('\n');
-    const full_prompt = `${initial_prompt}\n${current_conversation}`;
-    
-    try {
-        const result = await model.generateContent(full_prompt);
-
-        if (result && result.response && result.response.candidates && result.response.candidates.length > 0) {
-            const textContent = result.response.candidates[0].content.parts[0].text;
-            conversation_history.push(`ai: ${textContent}`);
-            return textContent;
-        } else {
-            console.error('Invalid API response:', result);
-            return 'Sorry, I couldn\'t generate a response.';
-        }
-    } catch (error) {
-        console.error('Error generating response:', error);
-        return 'An error occurred while generating the response.';
-    }
-}
-
-async function evaluate_answer(question, answer) {
-    const model = genAI.getGenerativeModel({
-        model: 'gemini-1.5-flash',
-    });
-
-    const prompt = `Question: ${question}\nAnswer: ${answer}\nEvaluate the above answer as an interview response. Provide a rating (Excellent, Good, Average, Poor) and explain why.`;
-
-    try {
-        const result = await model.generateContent(prompt);
-
-        if (result && result.response && result.response.candidates && result.response.candidates.length > 0) {
-            const evaluation_text = result.response.candidates[0].content.parts[0].text;
-            let rating = "Average";
-            if (evaluation_text.includes("Excellent")) {
-                rating = "Excellent";
-            } else if (evaluation_text.includes("Good")) {
-                rating = "Good";
-            } else if (evaluation_text.includes("Poor")) {
-                rating = "Poor";
-            }
-            return { rating, evaluation_text };
-        } else {
-            console.error('Invalid API response:', result);
-            return { rating: "Average", evaluation_text: 'Unable to evaluate.' };
-        }
-    } catch (error) {
-        console.error('Error evaluating answer:', error);
-        return { rating: "Average", evaluation_text: 'An error occurred while evaluating the answer.' };
-    }
-}
-
-app.post('/api/gemini', async (req, res) => {
-    if (!req.isAuthenticated()) {
-        return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const session_id = req.sessionID;
-
-    // Initialize session data if not already present
-    if (!sessionData[session_id]) {
-        sessionData[session_id] = {
-            qsns: 0,
-            conversation_history: [],
-            responses: [],
-            generated_questions: [],
-            flag: 0,
-            prev_ques: "",
-        };
-    }
-
-    const { qsns, conversation_history, responses, generated_questions, flag, prev_ques } = sessionData[session_id];
-    const user_message = req.body.message;
-
-    if (!user_message) {
-        return res.json({ response: 'Kindly Say hi to start' });
-    }
-
-    try {
-        let current_question = await generate_response(user_message, conversation_history);
-        generated_questions.push(current_question);
-
-        if (flag !== 0) {
-            conversation_history.push(`user: ${user_message}`);
-            const { rating, evaluation_text } = await evaluate_answer(prev_ques, user_message);
-
-            const response_entry = {
-                question: prev_ques,
-                answer: user_message,
-                rating: rating,
-                evaluation: evaluation_text,
-            };
-
-            responses.push(response_entry);
-        }
-
-        sessionData[session_id].qsns++;
-        sessionData[session_id].prev_ques = current_question;
-        sessionData[session_id].flag = 1;
-
-        if (sessionData[session_id].qsns >= 6) {  // End after 5 questions
-            interview_results[session_id] = responses.slice();
-            sessionData[session_id] = {
-                qsns: 0,
-                conversation_history: [],
-                responses: [],
-                generated_questions: [],
-                flag: 0,
-                prev_ques: "",
-            };
-            const redirect_url = "http://localhost:5173/Interview-Mate-frontend/result/";
-            return res.json({
-                response: current_question,
-                redirect: redirect_url
-            });
-        }
-
-        return res.json({ response: current_question, session_id });
-    } catch (error) {
-        console.error('Error processing request:', error);
-        return res.status(500).json({ response: `Error: ${error.message}` });
-    }
-});
-
-app.get('/result/:session_id', isAuthenticated, (req, res) => {
-    const session_id = req.sessionID;
-    const results = interview_results[session_id];
-
-    if (results) {
-        return res.json({ results });
-    } else {
-        return res.status(404).json({ response: 'Session not found' });
-    }
-});
-
-
-//endgoogle
 
 app.get('/',(req,res) =>{
  res.write("<h1>Hi Bibhuti Ranjan </h1>");
