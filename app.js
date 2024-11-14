@@ -63,7 +63,6 @@ io.on('connection', (socket) => {
       receiver: recipientId,
       status: { $ne:'seen'}
   });
-  console.log("sendng count love:",TotalUnseenCount);
   io.to(recipientId).emit('TotalUnseenCount', {TotalUnseenCount});
   });
 
