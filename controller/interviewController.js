@@ -14,9 +14,6 @@ export const handleGeminiPost = async (req, res) => {
 
   const session_id = `${req.sessionID}-${role}-${company}-${formId}`; // Create a unique session ID
 
-  console.log(user);
-  console.log(session_id);
-
   if (!sessionData[session_id]) {
     sessionData[session_id] = {
       qsns: 0,

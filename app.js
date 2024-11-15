@@ -14,7 +14,8 @@ import isAuthenticated from "./middleware/checkAuth.js";
 import userRouter from "./routes/userRouter.js";
 import postRouter from "./routes/postRouter.js";
 import messageRouter from "./routes/messageRouter.js";
-import geminiRoute from './routes/geminiRoute.js'; // Notice the .js extension
+import eventRouter from "./routes/eventRouter.js"
+import geminiRoute from './routes/geminiRoute.js';
 import http from "http";
 import {Server} from "socket.io";
 import { Message } from './models/messageSchema.js';
@@ -125,6 +126,7 @@ app.use(cookieParser());
 app.use("/api/users", userRouter);
 app.use("/api/posts",postRouter);
 app.use("/api/message",messageRouter);
+app.use("/api/event",eventRouter);
 app.use('/api', geminiRoute);
 
 

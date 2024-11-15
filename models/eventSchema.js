@@ -7,6 +7,7 @@ const EventSchema=new Schema({
  interested:[{ type: Schema.Types.ObjectId, ref: 'User' }],
  time: { type: Date,required: true },
  status: { type: String, enum: ['scheduled', 'live', 'ended'], default: 'scheduled' },
+ chats:[{ type: Schema.Types.ObjectId, ref: 'EventChat' }]
 });
 
 const Event=model('Event',EventSchema);
