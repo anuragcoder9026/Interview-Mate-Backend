@@ -85,10 +85,11 @@ userSchema.pre("save",async function (next){
       },
       process.env.ACCESS_TOKEN_SECRET,
       {
-        expiresIn: process.env.ACCESS_TOKEN_expiry || '1d'  // Default to 1 day if not set
+        expiresIn: '30d'  // Set expiration to 30 days
       }
     );
   }
+  
   
 //saving schema to database
 const User = new mongoose.model("User", userSchema);
