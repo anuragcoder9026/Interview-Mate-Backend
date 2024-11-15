@@ -22,7 +22,10 @@ import { Message } from './models/messageSchema.js';
 import { Chat } from './models/chatSchema.js';
 import { sendMessage } from './controller/messageController.js';
 const app = express();
-const port = 3200;
+const port =  process.env.PORT || 3200; ;
+const HOST = '0.0.0.0';
+
+
 const httpServer = http.createServer(app);
 
 const io = new Server(httpServer, {
@@ -104,10 +107,11 @@ dotenv.config();
 
 app.use(bodyParser.json());
 app.use(cors({
-  origin: 'http://localhost:5173', // Update with your React app's URL
+  origin: '*',  // Temporarily allow all origins
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  credentials: true // Allow cookies to be sent with requests
+  credentials: true,
 }));
+
 app.use(express.json());
 app.use(session({
   secret:process.env.SEC,
@@ -128,6 +132,7 @@ app.use("/api/posts",postRouter);
 app.use("/api/message",messageRouter);
 app.use("/api/event",eventRouter);
 app.use('/api', geminiRoute);
+
 
 
 const oauth2StrategyLogIn = new OAuth2Strategy({
@@ -227,7 +232,7 @@ app.get('/login/success', isAuthenticated, (req, res) => {
 app.get('/',(req,res) =>{
  res.write("<h1>Hi Bibhuti Ranjan </h1>");
 })
-httpServer.listen(port,(error)=>{
+httpServer.listen(port,HOST,(error)=>{
  if(!error){
     console.log("🎉Successfully conntected to server ");
  }
