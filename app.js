@@ -107,7 +107,7 @@ dotenv.config();
 
 app.use(bodyParser.json());
 app.use(cors({
-  origin: '*',  // Temporarily allow all origins
+  origin: 'https://alokthakur490.github.io/Interview-Mate-frontend/',  // Temporarily allow all origins
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   credentials: true,
 }));
