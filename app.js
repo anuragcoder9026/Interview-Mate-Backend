@@ -14,7 +14,8 @@ import isAuthenticated from "./middleware/checkAuth.js";
 import userRouter from "./routes/userRouter.js";
 import postRouter from "./routes/postRouter.js";
 import messageRouter from "./routes/messageRouter.js";
-import geminiRoute from './routes/geminiRoute.js'; // Notice the .js extension
+import eventRouter from "./routes/eventRouter.js"
+import geminiRoute from './routes/geminiRoute.js';
 import http from "http";
 import {Server} from "socket.io";
 import { Message } from './models/messageSchema.js';
@@ -69,7 +70,6 @@ io.on('connection', (socket) => {
       receiver: recipientId,
       status: { $ne:'seen'}
   });
-  console.log("sendng count love:",TotalUnseenCount);
   io.to(recipientId).emit('TotalUnseenCount', {TotalUnseenCount});
   });
 
@@ -107,7 +107,7 @@ dotenv.config();
 
 app.use(bodyParser.json());
 app.use(cors({
-  origin: 'https://alokthakur490.github.io/Interview-Mate-frontend/',  // Temporarily allow all origins
+  origin: '*',  // Temporarily allow all origins
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   credentials: true,
 }));
@@ -130,6 +130,7 @@ app.use(cookieParser());
 app.use("/api/users", userRouter);
 app.use("/api/posts",postRouter);
 app.use("/api/message",messageRouter);
+app.use("/api/event",eventRouter);
 app.use('/api', geminiRoute);
 
 
