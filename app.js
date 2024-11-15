@@ -21,7 +21,7 @@ import { Message } from './models/messageSchema.js';
 import { Chat } from './models/chatSchema.js';
 import { sendMessage } from './controller/messageController.js';
 const app = express();
-const port = 3200;
+const port =  process.env.PORT || 3200; ;
 const HOST = '0.0.0.0';
 
 
