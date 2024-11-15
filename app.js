@@ -107,10 +107,11 @@ dotenv.config();
 
 app.use(bodyParser.json());
 app.use(cors({
-  origin: 'http://localhost:5173', // Update with your React app's URL
+  origin: '*',  // Temporarily allow all origins
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  credentials: true // Allow cookies to be sent with requests
+  credentials: true,
 }));
+
 app.use(express.json());
 app.use(session({
   secret:process.env.SEC,
