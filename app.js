@@ -22,6 +22,9 @@ import { Chat } from './models/chatSchema.js';
 import { sendMessage } from './controller/messageController.js';
 const app = express();
 const port = 3200;
+const HOST = '0.0.0.0';
+
+
 const httpServer = http.createServer(app);
 
 const io = new Server(httpServer, {
@@ -227,7 +230,7 @@ app.get('/login/success', isAuthenticated, (req, res) => {
 app.get('/',(req,res) =>{
  res.write("<h1>Hi Bibhuti Ranjan </h1>");
 })
-httpServer.listen(port,(error)=>{
+httpServer.listen(port,HOST,(error)=>{
  if(!error){
     console.log("🎉Successfully conntected to server ");
  }
