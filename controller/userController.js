@@ -214,7 +214,7 @@ const LogIn=async (req,res)=>{
     else{
         let existedUser=await User.findOne({email});
     if(!existedUser){
-        return res.status(400).json({message:"Email does not match"})
+        return res.status(400).json({message:"Email does not match "})
     }
     else{
         let check=false;

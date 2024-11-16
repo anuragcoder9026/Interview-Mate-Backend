@@ -76,19 +76,20 @@ userSchema.pre("save",async function (next){
   return await bcrypt.compare(password,this.password) ; 
   }
   
-  userSchema.methods.generateAccessToken=function(){
+  userSchema.methods.generateAccessToken = function() {
     return jwt.sign(
-    {
-      _id:this._id,
-      email:this.email,
-      username:this.username,
-    },
-    process.env.ACCESS_TOKEN_SECRET,
-    {
-      expiresIn:process.env.ACCESS_TOKEN_expiry *24*60*60*1000
-    }
-    )
+      {
+        _id: this._id,
+        email: this.email,
+        username: this.username,
+      },
+      process.env.ACCESS_TOKEN_SECRET,
+      {
+        expiresIn: process.env.ACCESS_TOKEN_expiry || '30d'  // Default to 1 day if not set
+      }
+    );
   }
+  
 //saving schema to database
 const User = new mongoose.model("User", userSchema);
 
