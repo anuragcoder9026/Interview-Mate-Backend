@@ -52,6 +52,23 @@ const getAllActiveEvents = async (req, res) => {
     }
   };
 
+  const getUserEvents = async (req, res) => {
+    try {
+      const userId = req.user._id; 
+      const user = await User.findById(userId).select('events').exec();
+      if (!user) return res.status(404).json({ message: 'User not found' });
+      const events = await Event.find({ _id: { $in: user.events } })
+        .populate({
+          path: 'eventAdmin',
+          select: 'username profileimg name', 
+        })
+        .exec();
+      res.status(200).json(events);
+    } catch (error) {
+      res.status(500).json({ message: 'Error fetching events', error });
+    }
+  };
+
 
   const saveEvent=async (req,res)=>{
     if(!req.user) return res.status(400).send("not Authenticated");
@@ -78,4 +95,4 @@ const getAllActiveEvents = async (req, res) => {
       res.status(400).send({"message":"something went wrong"})
   }
 }
-export {createEvent,getAllActiveEvents,saveEvent,getAllSavedEvents}
+export {createEvent,getAllActiveEvents,saveEvent,getAllSavedEvents,getUserEvents}
