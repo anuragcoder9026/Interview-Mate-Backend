@@ -14,7 +14,7 @@ const genAI = new GoogleGenerativeAI(apiKey);
 const INITIAL_PROMPT = "You are the interviewer in an interview. Ask me questions one by one. And don't stick to one topic. Try to generate different questions to make it feel like a real interview, covering all aspects in 10 to 15 questions.";
 
 export async function generate_response(query, conversation_history, initial_prompt = INITIAL_PROMPT) {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-8b' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-001' });
     const current_conversation = conversation_history.slice(-10).concat([`user: ${query}`]).join('\n');
     const full_prompt = `${initial_prompt}\n${current_conversation}`;
     
@@ -38,7 +38,7 @@ export async function generate_response(query, conversation_history, initial_pro
 }
 
 export async function evaluate_answer(question, answer) {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-8b' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-001' });
     const prompt = `Question: ${question}\nAnswer: ${answer}\nEvaluate the above answer as an interview response. Provide a rating (Excellent, Good, Average, Poor) and explain why.`;
 
     try {
