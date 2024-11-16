@@ -107,10 +107,11 @@ dotenv.config();
 
 app.use(bodyParser.json());
 app.use(cors({
-  origin: 'http://localhost:5173',  // Temporarily allow all origins
+  origin: 'http://localhost:5173',  // Add both URLs
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  credentials: true,
+  credentials: true,  // Allow credentials (cookies)
 }));
+
 
 app.use(express.json());
 app.use(session({
@@ -138,7 +139,7 @@ app.use('/api', geminiRoute);
 const oauth2StrategyLogIn = new OAuth2Strategy({
   clientID:process.env.CLIENT_ID_SIGNIN,
   clientSecret: process.env.CLIENT_SECRET_SIGNIN,
-  callbackURL: "http://localhost:3200/auth/google/signin/callback", // Corrected URL
+  callbackURL: "https://interview-mate-backend-41xo.onrender.com/auth/google/signin/callback", // Corrected URL
   scope: ["profile", "email"]
 }, async (accessToken, refreshToken, profile, done) => {
   try {
@@ -151,7 +152,7 @@ const oauth2StrategyLogIn = new OAuth2Strategy({
 const oauth2StrategySignUp = new OAuth2Strategy({
     clientID:process.env.CLIENT_ID_SIGNUP,
     clientSecret: process.env.CLIENT_SECRET_SIGNUP,
-    callbackURL: "http://localhost:3200/auth/google/signup/callback", // Corrected URL
+    callbackURL: "https://interview-mate-backend-41xo.onrender.com/auth/google/signup/callback", // Corrected URL
     scope: ["profile", "email"]
   }, async (accessToken, refreshToken, profile, done) => {
     try {
