@@ -146,7 +146,7 @@ export const handleGeminiPost = async (req, res) => {
 
       // Redirect to the results page
       const redirect_url =
-        "http://localhost:5173/Interview-Mate-frontend/result/";
+        "https://alokthakur490.github.io/Interview-Mate-frontend/result/";
       return res.json({
         response: current_question,
         redirect: redirect_url,
