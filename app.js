@@ -30,7 +30,7 @@ const httpServer = http.createServer(app);
 
 const io = new Server(httpServer, {
   cors: {
-    origin: 'http://localhost:5173', 
+    origin: 'https://alokthakur490.github.io', 
   },
 });
 
@@ -190,7 +190,7 @@ async(req,res)=>{
     sameSite: 'None'
   }; 
   res.cookie("accessToken",accessToken,options)  ;
-  res.redirect(`http://localhost:5173/Interview-Mate-frontend/profile`)  
+  res.redirect(`https://alokthakur490.github.io/Interview-Mate-frontend/profile`)  
 });
 
 
@@ -218,7 +218,7 @@ async(req,res)=>{
     sameSite: 'None'
   }; 
   res.cookie("accessToken",accessToken,options) ;
-  res.redirect(`http://localhost:5173/Interview-Mate-frontend/profile/`)  
+  res.redirect(`https://alokthakur490.github.io/Interview-Mate-frontend/profile/`)  
 });
 
 app.get('/login/success', isAuthenticated, (req, res) => {
