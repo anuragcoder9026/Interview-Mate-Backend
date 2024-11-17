@@ -11,7 +11,7 @@ if (!apiKey) {
 }
 
 const genAI = new GoogleGenerativeAI(apiKey);
-const INITIAL_PROMPT = "You are the interviewer in an interview. Ask me questions one by one. And don't stick to one topic. Try to generate different questions to make it feel like a real interview, covering all aspects in 10 to 15 questions.";
+const INITIAL_PROMPT = "You are the voice model and prentend to be a interviewer in an interview. Ask me questions one by one. And don't stick to one topic. Try to generate different questions to make it feel like a real interview, covering all aspects in 10 to 15 questions.";
 
 export async function generate_response(query, conversation_history, initial_prompt = INITIAL_PROMPT) {
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-001' });
