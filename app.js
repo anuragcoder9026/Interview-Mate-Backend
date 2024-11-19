@@ -30,7 +30,7 @@ const httpServer = http.createServer(app);
 
 const io = new Server(httpServer, {
   cors: {
-    origin: 'http://localhost:5173', 
+    origin: 'https://alokthakur490.github.io/', 
   },
 });
 
@@ -107,7 +107,7 @@ dotenv.config();
 
 app.use(bodyParser.json());
 app.use(cors({
-  origin: 'http://localhost:5173',  // Add both URLs
+  origin: 'https://alokthakur490.github.io/',  // Add both URLs
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   credentials: true,  // Allow credentials (cookies)
 }));
