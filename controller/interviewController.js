@@ -205,11 +205,22 @@ export const handleGeminiPost = async (req, res) => {
     });
     await session.save(); // Save the session after updating history
 
+    const formatText = (text) => {
+      return text
+        .replace(/\*(.*?)\*/g, '') // Bold for headings
+        .replace(/_(.*?)_/g, '') // Italics for subheadings
+        .replace(/•/g, '') // Bullet points
+        .replace(/\n/g, ''); // Line breaks
+    };
+   
+ 
+
     // Check if it's the first message
     let current_question = "";
     if (session.history.length === 1) {
       // Generate the first question based on the user's initial message
       current_question = await generate_response(user_message, []);
+      current_question = formatText(current_question);
     } else {
       // Generate the next question based on the session's history
       const conversation_history = session.history
@@ -229,6 +240,7 @@ export const handleGeminiPost = async (req, res) => {
       try {
         // Generate the next question based on the entire session's history
         current_question = await generate_response(user_message, conversation_history);
+        current_question = formatText(current_question);
         await session.save(); // Save after generating the new question
       } catch (error) {
         console.error("Error generating question:", error);
@@ -261,7 +273,8 @@ export const handleGeminiPost = async (req, res) => {
       }
 
       // Evaluate the user's response to the previous question
-      const { rating, evaluation_text } = await evaluate_answer(prev_ques, user_ans);
+      let { rating, evaluation_text } = await evaluate_answer(prev_ques, user_ans);
+      evaluation_text = formatText(evaluation_text);
 
       // Ensure that the response includes the required fields
       const response_entry = {
