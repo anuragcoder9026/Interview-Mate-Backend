@@ -3,7 +3,11 @@ import { Message } from "../models/messageSchema.js";
 import { Chat } from "../models/chatSchema.js";
 import { Event } from "../models/eventSchema.js";
 import {uploadOnCloudinary} from "../utils/cloudinary.js"
+<<<<<<< HEAD
 import { EventChat } from "../models/eventChatSchema.js";
+=======
+
+>>>>>>> 6ffcd031ebbc559a516449a5e47890b9889b9ffa
 const createEvent=async(req,res)=>{
     
   const{title,detail,time}=req.body;
@@ -21,6 +25,7 @@ const createEvent=async(req,res)=>{
   }
 }
 
+<<<<<<< HEAD
 const getEvent = async (req, res) => {
   const { eventId } = req.query;
 
@@ -71,6 +76,8 @@ const getEvent = async (req, res) => {
 };
 
 
+=======
+>>>>>>> 6ffcd031ebbc559a516449a5e47890b9889b9ffa
 const getAllActiveEvents = async (req, res) => {
     try {
       const events = await Event.find({ status: { $ne: 'ended' } })
@@ -145,4 +152,8 @@ const getAllActiveEvents = async (req, res) => {
       res.status(400).send({"message":"something went wrong"})
   }
 }
+<<<<<<< HEAD
 export {createEvent,getAllActiveEvents,saveEvent,getAllSavedEvents,getUserEvents,getEvent}
+=======
+export {createEvent,getAllActiveEvents,saveEvent,getAllSavedEvents,getUserEvents}
+>>>>>>> 6ffcd031ebbc559a516449a5e47890b9889b9ffa

@@ -33,7 +33,7 @@ const httpServer = http.createServer(app);
 
 const io = new Server(httpServer, {
   cors: {
-    origin: 'http://localhost:5173',
+    origin: 'https://alokthakur490.github.io', 
   },
 });
 
@@ -274,7 +274,7 @@ const oauth2StrategyLogIn = new OAuth2Strategy({
 const oauth2StrategySignUp = new OAuth2Strategy({
     clientID:process.env.CLIENT_ID_SIGNUP,
     clientSecret: process.env.CLIENT_SECRET_SIGNUP,
-    callbackURL: "https://interview-mate-backend.onrender.com/auth/google/signin/callback", // Corrected URL
+    callbackURL: "https://interview-mate-backend.onrender.com/auth/google/signup/callback", // Corrected URL
     scope: ["profile", "email"]
   }, async (accessToken, refreshToken, profile, done) => {
     try {
@@ -340,7 +340,7 @@ async(req,res)=>{
     sameSite: 'None'
   }; 
   res.cookie("accessToken",accessToken,options) ;
-  res.redirect(`https://alokthakur490.github.io/Interview-Mate-frontend/profile`)  
+  res.redirect(`https://alokthakur490.github.io/Interview-Mate-frontend/profile/`)  
 });
 
 app.get('/login/success', isAuthenticated, (req, res) => {
