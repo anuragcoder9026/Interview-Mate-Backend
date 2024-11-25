@@ -70,7 +70,7 @@ io.on('connection', (socket) => {
       console.log(`User ${userId} started live event ${eventId}`);
       io.to(eventId).emit("watchingUsers", eventUsers.length);
     } catch (error) {
-      console.error("Error in liveEvent:", error);
+      console.error("Error in liveEvent: ", error);
     }
   });
 
