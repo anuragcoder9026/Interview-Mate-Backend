@@ -229,7 +229,7 @@ dotenv.config();
 
 app.use(bodyParser.json());
 app.use(cors({
-  origin:'https://alokthakur490.github.io',
+  origin: 'https://alokthakur490.github.io',  // Add both URLs
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   credentials: true,  // Allow credentials (cookies)
 }));
