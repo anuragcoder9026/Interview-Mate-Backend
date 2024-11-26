@@ -21,6 +21,9 @@ import {Server} from "socket.io";
 import { Message } from './models/messageSchema.js';
 import { Chat } from './models/chatSchema.js';
 import { sendMessage } from './controller/messageController.js';
+import { Event } from './models/eventSchema.js';
+import { EventChat } from './models/eventChatSchema.js';
+import { log } from 'console';
 const app = express();
 const port =  process.env.PORT || 3200; ;
 const HOST = '0.0.0.0';
@@ -35,10 +38,10 @@ const io = new Server(httpServer, {
 });
 
 
-
+const eventUserMap = new Map();
 
 io.on('connection', (socket) => {
- 
+  
   // Join user to room based on user ID
   socket.on('join', async (userId) => {
     socket.userId = userId;
@@ -46,6 +49,125 @@ io.on('connection', (socket) => {
     await User.findByIdAndUpdate(userId, { online: true });
     io.emit('userOnlineStatus', { userId, online: true });
   });
+
+  socket.on("liveEvent", async ({ eventId, userId }) => {
+    try {
+      socket.join(eventId);
+      socket.eventId = eventId;
+
+      if (!eventUserMap.has(eventId)) {
+        eventUserMap.set(eventId, []);
+      }
+
+      const eventUsers = eventUserMap.get(eventId);
+      if (!eventUsers.includes(userId)) {
+        eventUsers.push(userId);
+      }
+
+      // Update event status in the database
+      await Event.findByIdAndUpdate(eventId, { status: "live" });
+
+      console.log(`User ${userId} started live event ${eventId}`);
+      io.to(eventId).emit("watchingUsers", eventUsers.length);
+    } catch (error) {
+      console.error("Error in liveEvent: ", error);
+    }
+  });
+
+  // Join an event room
+  socket.on("joinEvent", async ({ eventId, userId }) => {
+    try {
+      socket.join(eventId);
+
+      if (!eventUserMap.has(eventId)) {
+        eventUserMap.set(eventId, []);
+      }
+
+      const eventUsers = eventUserMap.get(eventId);
+      if (!eventUsers.includes(userId)) {
+        eventUsers.push(userId);
+      }
+
+      const user = await User.findById(userId).select("profileimg name username");
+      io.to(eventId).emit("newUser", user);
+      io.to(eventId).emit("watchingUsers", eventUsers.length);
+
+      console.log(`User ${userId} joined event ${eventId}`);
+    } catch (error) {
+      console.error("Error in joinEvent:", error);
+    }
+  });
+
+  // End an event
+  socket.on("endEvent", async ({ eventId, userId }) => {
+    try {
+      await Event.findByIdAndUpdate(eventId, { status: "ended" });
+      io.to(eventId).emit("eventEnded", { eventId });
+
+      console.log(`User ${userId} ended event ${eventId}`);
+    } catch (error) {
+      console.error("Error in endEvent:", error);
+    }
+  });
+
+  // Leave an event room
+  socket.on("leaveEvent", ({ eventId, userId }) => {
+    socket.leave(eventId);
+
+    if (eventUserMap.has(eventId)) {
+      const eventUsers = eventUserMap.get(eventId);
+      const index = eventUsers.indexOf(userId);
+      if (index > -1) {
+        eventUsers.splice(index, 1);
+      }
+
+      io.to(eventId).emit("watchingUsers", eventUsers.length);
+      console.log(`User ${userId} left event ${eventId}. Remaining users: ${eventUsers.length}`);
+    }
+  });
+
+  
+
+  
+
+  // Send chat message
+  socket.on('sendEventMessage', async ({ eventId, userId, name, avatar, text, isAdminChat, repliedTo }) => {
+    try {
+      const event = await Event.findById(eventId);
+
+      const newChat = new EventChat({
+        text,
+        chatUser: userId,
+        event: eventId,
+        isAdminChat,
+        repliedTo,
+      });
+
+      event.chats.push(newChat._id);
+      await newChat.save();
+      await event.save();
+
+      const repliedUser = repliedTo
+        ? await User.findById(repliedTo).select('name username profileimg')
+        : null;
+
+      const newMsg = {
+        id: newChat._id,
+        user: name,
+        content: text,
+        userType: isAdminChat ? 'admin' : 'default',
+        avatar,
+        userId,
+        replyTo: repliedUser,
+      };
+
+      io.to(eventId).emit('newMessage', newMsg);
+    } catch (error) {
+      console.error('Error during sendEventMessage:', error);
+    }
+  });
+
+
 
   // Handle typing status
   socket.on('typing', (data) => {

@@ -8,7 +8,7 @@ import { Message } from "../models/messageSchema.js";
 //saving profile intro
 const Intro = async (req, res) => {
     try {
-        const userId = req.user._id; 
+        const userId = req.user?._id; 
         const introData = req.body; 
         const user = await User.findById(userId);
         if (!user)return res.status(404).json({ message: "User not found" });
@@ -22,7 +22,7 @@ const Intro = async (req, res) => {
 };
 
 const getTotalImpressions = async (req, res) => {
-    const userId=req.user._id;
+    const userId=req.user?._id;
     try {
         const user = await User.findById(userId).select('posts');
         if (!user || user.posts.length === 0) {
@@ -46,7 +46,7 @@ const getTotalImpressions = async (req, res) => {
 //saving profile Education
 const Education = async (req, res) => {
     try {
-        const userId = req.user._id; 
+        const userId = req.user?._id; 
         const { id, education } = req.body; 
 
         const user = await User.findById(userId);
@@ -72,7 +72,7 @@ const Education = async (req, res) => {
 
 const deleteEducation = async (req, res) => {
     try {
-        const userId = req.user._id;
+        const userId = req.user?._id;
         const { educationId } = req.body;
 
         const user = await User.findById(userId);
@@ -90,7 +90,7 @@ const deleteEducation = async (req, res) => {
 //saving profile Experiences
 const Experience = async (req, res) => {
     try {
-        const userId = req.user._id; 
+        const userId = req.user?._id; 
         const { id, experience } = req.body; 
 
         const user = await User.findById(userId);
@@ -116,7 +116,7 @@ const Experience = async (req, res) => {
 
 const deleteExperience = async (req, res) => {
     try {
-        const userId = req.user._id;
+        const userId = req.user?._id;
         const { experienceId } = req.body;
 
         const user = await User.findById(userId);
@@ -134,7 +134,7 @@ const deleteExperience = async (req, res) => {
 //saving profile About
 const About = async (req, res) => {
     try {
-        const userId = req.user._id; 
+        const userId = req.user?._id; 
         const {about} = req.body; 
         const user = await User.findById(userId);
         if (!user)return res.status(404).json({ message: "User not found" });
@@ -149,7 +149,7 @@ const About = async (req, res) => {
 // update user skills
 const Skill = async (req, res) => {
     try {
-        const userId = req.user._id;
+        const userId = req.user?._id;
         const { skill } = req.body;
 
         const user = await User.findById(userId);
@@ -214,7 +214,7 @@ const LogIn=async (req,res)=>{
     else{
         let existedUser=await User.findOne({email});
     if(!existedUser){
-        return res.status(400).json({message:"Email does not match"})
+        return res.status(400).json({message:"Email does not match "})
     }
     else{
         let check=false;
@@ -242,7 +242,7 @@ const LogIn=async (req,res)=>{
 
 const LogOut = async (req, res) => {
     // Clear all cookies
-    await User.findByIdAndUpdate(req.user._id,{online:false});
+    await User.findByIdAndUpdate(req.user?._id,{online:false});
     Object.keys(req.cookies).forEach((cookieName) => {
         res.clearCookie(cookieName, {
             path: '/',
@@ -271,7 +271,7 @@ const followUser=async (req,res)=>{
       const {username,follow}=req.body;
       
       try {
-          let user=await User.findById(req.user._id);
+          let user=await User.findById(req.user?._id);
           let followedUser=await User.findOne({username});
         if (follow === 'Follow') {
             if (!followedUser.followers.includes(user._id)) {
@@ -308,7 +308,7 @@ const followUser=async (req,res)=>{
 const getFollowerSuggestions = async (req, res) => {
     try {
         // Get the ID of the requesting user
-        const userId = req.user._id;
+        const userId = req.user?._id;
 
         // Find the user and populate the 'following' field
         const user = await User.findById(userId).populate('following', '_id');
@@ -389,7 +389,7 @@ const getFollowerSuggestions = async (req, res) => {
 
 const getUserFollowers = async (req, res) => {
     try {
-      const user = await User.findById(req.user._id).populate({path: 'followers',
+      const user = await User.findById(req.user?._id).populate({path: 'followers',
         select: 'name username profileimg intro.tagline'
       });
       if (!user) return res.status(404).json({ message: 'User not found' });
@@ -402,7 +402,7 @@ const getUserFollowers = async (req, res) => {
 
   const getUserFollowings = async (req, res) => {
     try {
-      const user = await User.findById(req.user._id).populate({path: 'following',
+      const user = await User.findById(req.user?._id).populate({path: 'following',
         select: 'name username profileimg intro.tagline'
       });
       if (!user) return res.status(404).json({ message: 'User not found' });
@@ -415,7 +415,7 @@ const getUserFollowers = async (req, res) => {
  
   const getUserFollowerList = async (req, res) => {
     const username=req.params.username;
-    const authenticatedUserId = req.user._id;
+    const authenticatedUserId = req.user?._id;
   
     try {
       const user = await User.findOne({username}).populate({
@@ -448,7 +448,7 @@ const getUserFollowers = async (req, res) => {
 
   const getUserFollowingList = async (req, res) => {
     const username = req.params.username;
-    const authenticatedUserId = req.user._id;
+    const authenticatedUserId = req.user?._id;
   
     try {
       // Find the user by username and populate their following list
@@ -552,7 +552,7 @@ const getUserFollowersSummary = async (req, res) => {
 
   const getFollowerNotifications = async (req, res) => {
     try {
-      const user = await User.findById(req.user._id).populate({
+      const user = await User.findById(req.user?._id).populate({
         path: 'notifications',
         match: { type: 'follow' },
         options: { sort: { createdAt: -1 } },
@@ -583,7 +583,7 @@ const getUserFollowersSummary = async (req, res) => {
   // Fetch post notifications
   const getPostNotifications = async (req, res) => {
     try {
-      const user = await User.findById(req.user._id).populate({
+      const user = await User.findById(req.user?._id).populate({
         path: 'notifications',
         match: { type: { $in: ['like', 'comment', 'post'] } },
         options: { sort: { createdAt: -1 } },
@@ -613,7 +613,7 @@ const getUserFollowersSummary = async (req, res) => {
  const setReadNotification =async(req,res)=>{
        const {notificationId}=req.body;
        try {
-           const user=await User.findById(req.user._id);
+           const user=await User.findById(req.user?._id);
            if(!user.readNotifications.includes(notificationId)){
            user.readNotifications.push(notificationId);
            }
@@ -628,7 +628,7 @@ const getUserFollowersSummary = async (req, res) => {
     const { notificationId } = req.body;
     try {
       const user = await User.findByIdAndUpdate(
-        req.user._id,
+        req.user?._id,
         {
           $pull: {
             notifications: notificationId,
@@ -646,7 +646,7 @@ const getUserFollowersSummary = async (req, res) => {
   
   const getUnseenMessageCount=async(req,res)=>{
   try {
-    const unseenCount = await Message.countDocuments({receiver: req.user._id,status: { $ne:'seen'}});
+    const unseenCount = await Message.countDocuments({receiver: req.user?._id,status: { $ne:'seen'}});
     res.status(200).json({unseenCount});
   } catch (error) {
     res.status(500).json({ message: 'Error fetching Unseen notification' });

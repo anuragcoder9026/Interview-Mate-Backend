@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createEvent ,getAllActiveEvents,saveEvent,getAllSavedEvents,getUserEvents} from "../controller/eventController.js";
+import { createEvent ,getEvent,getAllActiveEvents,saveEvent,getAllSavedEvents,getUserEvents} from "../controller/eventController.js";
 import {upload} from "../middleware/multer.js"
 import isAuthenticated from "../middleware/checkAuth.js"
 
@@ -12,4 +12,5 @@ router.route("/get-all-event").get(getAllActiveEvents);
 router.route("/save-event").post(isAuthenticated,saveEvent);
 router.route("/get-all-savedevent").get(isAuthenticated,getAllSavedEvents);
 router.route("/get-user-event").get(isAuthenticated,getUserEvents);
+router.route("/get-event").get(isAuthenticated,getEvent);
 export default router;

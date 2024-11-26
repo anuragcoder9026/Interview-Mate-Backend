@@ -339,7 +339,6 @@ export const handleGeminiPost = async (req, res) => {
   }
 };
 
-
 // Fetch the results based on session_id
 export const getResult = async (req, res) => {
   const userId = req.user?._id; // Get the current user ID
